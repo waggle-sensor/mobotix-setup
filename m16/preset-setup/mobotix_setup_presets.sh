@@ -1,30 +1,58 @@
 #!/bin/bash
 
-cam_IP="$1"
-base_command="curl -u admin:wagglesage  -X POST  http://"$cam_IP"/control/rcontrol?action=putrs232&rs232outtext="
+# Script to set preset angles on Mobotix M16 via HTTP POST commands with preset movements and actions.
 
+# Ensure the script exits on any error
+set -euo pipefail
+
+# Check if an IP address was provided
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <camera_IP>"
+    exit 1
+fi
+
+# Input arguments
+cam_IP="$1"
+
+# Base command for sending control instructions
+base_command="curl -u admin:wagglesage -X POST http://$cam_IP/control/rcontrol?action=putrs232&rs232outtext="
+
+# Define camera movement codes
+# Add comments to explain each category for readability
+
+# Upward movements
 up_s1="%FF%01%00%08%00%01%0A"
 up_s2="%FF%01%00%08%00%0F%18"
 up_s3="%FF%01%00%08%00%1F%28"
 up_s4="%FF%01%00%08%00%2F%38"
 up_s5="%FF%01%00%08%00%FF%08"
+
+# Downward movements
 down_s1="%FF%01%00%10%00%01%12"
 down_s2="%FF%01%00%10%00%0F%20"
 down_s3="%FF%01%00%10%00%1F%30"
 down_s4="%FF%01%00%10%00%2F%40"
 down_s5="%FF%01%00%10%00%FF%10"
+
+# Rightward movements
 right_s1="%FF%01%00%02%01%00%04"
 right_s2="%FF%01%00%02%0F%00%12"
 right_s3="%FF%01%00%02%1F%00%22"
 right_s4="%FF%01%00%02%2F%00%32"
 right_s5="%FF%01%00%02%FF%00%02"
+
+# Leftward movements
 left_s1="%FF%01%00%04%01%00%06"
 left_s2="%FF%01%00%04%0F%00%14"
 left_s3="%FF%01%00%04%1F%00%24"
 left_s4="%FF%01%00%04%2F%00%34"
 left_s5="%FF%01%00%04%FF%00%04"
+
+# Other commands
 stop="%FF%01%00%00%00%00%01"
 reset="%FF%01%00%0F%00%00%10"
+
+# Preset tour save and call commands 
 tour_rec_start_1="%FF%01%00%1F%00%00%20"
 tour_rec_start_2="%FF%01%00%1F%00%01%21"
 tour_rec_start_3="%FF%01%00%1F%00%02%22"
@@ -102,73 +130,84 @@ call_preset_30="%FF%01%00%07%00%30%38"
 call_preset_31="%FF%01%00%07%00%31%39"
 call_preset_32="%FF%01%00%07%00%32%3A"
 
-### Set Presets ###
-
-
-## start from reset
-$base_command$reset
-sleep 60
-echo "start"
-
-$base_command$right_s2
-
-#deadend up
-$base_command$up_s5
-sleep 10
-$base_command$stop
-sleep 1
-echo "Top Most"
-
-#    down 7
-#    preset save
-$base_command$down_s2
-sleep 7
-$base_command$stop
-sleep 1
-
-echo "Initial Location"
-sleep 1
-
-for k in {0..3}; do
-  for i in {1..4}
-    do
-        if [ $i -gt 1 ]
-        then
-            $base_command$down_s2
-            sleep 7
-            $base_command$stop
-            sleep 1
-        fi
-        this_preset="save_preset_$((8*k+i))"
-        echo $this_preset
-        $base_command"${!this_preset}"
-  done
-
-    #there is a move right here
-    $base_command$right_s2
-    sleep 10.55
-    $base_command$stop
+# Function to send a command
+send_command() {
+    local command="$1"
+    echo "Sending command: $command"
+    $base_command"$command" || {
+        echo "Error: Failed to send command: $command"
+        exit 1
+    }
     sleep 1
+}
 
-  for i in {8..5}
-    do
-        if [ $i -lt 8 ]
-        then
-            $base_command$up_s2
+# Reset camera to starting position
+echo "Resetting camera..."
+send_command "$reset"
+sleep 60  # Allow time for reset
+
+echo "Starting script..."
+
+# Initial movement
+send_command "$right_s2"
+send_command "$up_s5"
+sleep 10
+send_command "$stop"
+echo "Reached topmost position."
+
+# Move downward and save preset locations
+send_command "$down_s2"
+sleep 7
+send_command "$stop"
+echo "Reached initial location."
+
+# Loop through positions and save presets
+for k in {0..3}; do
+    for i in {1..4}; do
+        if [[ $i -gt 1 ]]; then
+            send_command "$down_s2"
             sleep 7
-            $base_command$stop
-            sleep 1
+            send_command "$stop"
         fi
-        this_preset="save_preset_$((8*k +i))"
-        echo $this_preset
-        $base_command"${!this_preset}"
+
+        preset_var="save_preset_$((8 * k + i))"
+        preset_command="${!preset_var:-}"
+        if [[ -n $preset_command ]]; then
+            echo "Saving preset $preset_var"
+            send_command "$preset_command"
+        else
+            echo "Warning: Undefined preset $preset_var"
+        fi
     done
 
-    #there is a move right here
-    $base_command$right_s2
+    # Move right after saving presets
+    send_command "$right_s2"
     sleep 10.55
-    $base_command$stop
-    sleep 1
+    send_command "$stop"
+
+    # Reverse movement and save additional presets
+    for i in {8..5}; do
+        if [[ $i -lt 8 ]]; then
+            send_command "$up_s2"
+            sleep 7
+            send_command "$stop"
+        fi
+
+        preset_var="save_preset_$((8 * k + i))"
+        preset_command="${!preset_var:-}"
+        if [[ -n $preset_command ]]; then
+            echo "Saving preset $preset_var"
+            send_command "$preset_command"
+        else
+            echo "Warning: Undefined preset $preset_var"
+        fi
+    done
+
+    # Move right again
+    send_command "$right_s2"
+    sleep 10.55
+    send_command "$stop"
 done
 
+echo "Script completed successfully."
 exit 0
