@@ -1,11 +1,10 @@
 #!/bin/bash
 
-#Usage:$1 is camera IP  $2 is the preset location
-# $1 - "10.31.81.1x"
-# $2 - preset location 1--32
+#Usage:$1 is the preset location
+# $1 - preset location 1--32
 
 
-base_command="curl -u admin:wagglesage  -X POST  http://"$1"/control/rcontrol?action=putrs232&rs232outtext="
+base_command="curl -u admin:wagglesage  -X POST  http://camera-pt-rgbt-mobotix/control/rcontrol?action=putrs232&rs232outtext="
 
 up_s1="%FF%01%00%08%00%01%0A"
 up_s2="%FF%01%00%08%00%0F%18"
@@ -106,7 +105,7 @@ call_preset_30="%FF%01%00%07%00%30%38"
 call_preset_31="%FF%01%00%07%00%31%39"
 call_preset_32="%FF%01%00%07%00%32%3A"
 
-location="call_preset_$2"
+location="call_preset_$1"
 echo $location
 $base_command"${!location}"
 sleep 2
