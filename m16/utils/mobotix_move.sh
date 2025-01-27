@@ -1,13 +1,12 @@
 #!/bin/bash
 
-#Usage:$1 is camera IP  $2 is direction, $3 is speed and $4 is how long to run in that direction and speed via sleep
-# $1 - "10.31.81.1x"
-# $2 - up/down/left/right
-# $3 - 1--5
-# $4 - duration in seconds
+#Usage:$1 is direction, $2 is speed and $3 is how long to run in that direction and speed via sleep
+# $1 - up/down/left/right
+# $2 - 1--5
+# $3 - duration in seconds
 
 
-base_command="curl -u admin:wagglesage  -X POST  http://"$1"/control/rcontrol?action=putrs232&rs232outtext="
+base_command="curl -u admin:wagglesage  -X POST  http://camera-pt-rgbt-mobotix/control/rcontrol?action=putrs232&rs232outtext="
 
 up_s1="%FF%01%00%08%00%01%0A"
 up_s2="%FF%01%00%08%00%0F%18"
@@ -110,9 +109,9 @@ call_preset_32="%FF%01%00%07%00%32%3A"
 
 
 
-location="$2_s$3"
+location="$1_s$2"
 $base_command"${!location}"
-sleep $4
+sleep $3
 $base_command$stop
 echo "done with move..."
 
