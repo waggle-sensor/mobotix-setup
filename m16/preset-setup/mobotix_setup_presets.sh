@@ -5,14 +5,7 @@
 # Ensure the script exits on any error
 set -euo pipefail
 
-# Check if an IP address was provided
-if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <camera_IP>"
-    exit 1
-fi
-
-# Input arguments
-cam_IP="$1"
+cam_IP="camera-pt-rgbt-mobotix"
 
 # Base command for sending control instructions
 base_command="curl -u admin:wagglesage -X POST http://$cam_IP/control/rcontrol?action=putrs232&rs232outtext="
